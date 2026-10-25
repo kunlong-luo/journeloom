@@ -1,0 +1,22 @@
+# Dependencies and generated output
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.vite/
+
+# Machine-local configuration
+.env
+.env.*
+!.env.example
+.DS_Store
+
+# Never commit personal life archives or exports
+private/
+backups/
+local-data/
+personal-records/
+*.backup.zip
+*.journeloom.zip
+
