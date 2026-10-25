@@ -4,12 +4,13 @@ export type Category = "all" | "milestone" | "memory" | "growth";
 type EventCopy = { year: string; date: string; title: string; description: string; category: Exclude<Category, "all"> };
 
 export type Copy = {
-  nav: { timeline: string; philosophy: string; roadmap: string; github: string };
+  nav: { timeline: string; philosophy: string; roadmap: string; github: string; archive: string };
   language: string;
   eyebrow: string;
   heroLines: [string, string, string];
   heroBody: string;
   explore: string;
+  startArchive: string;
   source: string;
   heroFootnote: string;
   cover: string;
@@ -41,14 +42,15 @@ export type Copy = {
 
 export const messages: Record<Locale, Copy> = {
   zh: {
-    nav: { timeline: "故事时间轴", philosophy: "设计理念", roadmap: "开发进度", github: "GitHub" },
+    nav: { timeline: "故事时间轴", philosophy: "设计理念", roadmap: "开发进度", github: "GitHub", archive: "我的档案" },
     language: "Switch to English",
     eyebrow: "个人生活档案 · 一段仍在书写的旅程",
     heroLines: ["把人生的片刻，", "织成可以回望", "的故事。"],
     heroBody: "每一次出发、每一个转折、每一段平凡的日子，都有被认真珍藏的意义。Journeloom 为你的真实人生留下一处安静、私密的空间。",
     explore: "探索故事时间轴",
+    startArchive: "开始记录人生",
     source: "查看开源项目",
-    heroFootnote: "M0 产品预览 · 目前展示的是虚构示例，暂未保存个人数据",
+    heroFootnote: "下方时间轴是虚构示例；进入“我的档案”后，真实记录只保存在你当前的浏览器。",
     cover: "LIFE / IN PROGRESS",
     edition: "一本关于时间的私人手记",
     memoryTitle: "那些值得留住的瞬间",
@@ -90,17 +92,18 @@ export const messages: Record<Locale, Copy> = {
     closingTitle: "每个人的人生，都值得被记录。",
     closingBody: "不必有惊天动地的成就。从今天开始，一页一页地保存你的故事。",
     footerNote: "开源构建中 · 私人内容不会因浏览这个预览页而上传",
-    futureButton: "记录功能开发中",
+    futureButton: "打开我的档案",
   },
   en: {
-    nav: { timeline: "Timeline", philosophy: "Our philosophy", roadmap: "Roadmap", github: "GitHub" },
+    nav: { timeline: "Timeline", philosophy: "Our philosophy", roadmap: "Roadmap", github: "GitHub", archive: "My archive" },
     language: "切换到中文",
     eyebrow: "A PERSONAL LIFE ARCHIVE · A STORY STILL UNFOLDING",
     heroLines: ["Gather the moments.", "Weave a life", "worth remembering."],
     heroBody: "Every beginning, turning point, and ordinary afternoon belongs to your story. Journeloom is a calm, private space for the life you've actually lived.",
     explore: "Explore the timeline",
+    startArchive: "Start your life story",
     source: "View on GitHub",
-    heroFootnote: "M0 product preview · Fictional sample stories only; personal storage is not available yet",
+    heroFootnote: "The timeline below is fictional. Your real archive stays in this browser when you open My archive.",
     cover: "LIFE / IN PROGRESS",
     edition: "A private collection of moments",
     memoryTitle: "The moments we keep",
@@ -142,7 +145,7 @@ export const messages: Record<Locale, Copy> = {
     closingTitle: "Every life has a story.",
     closingBody: "It doesn't need to be extraordinary. Start preserving your own, one page at a time.",
     footerNote: "Open source, in progress · Visiting this preview does not upload personal memories",
-    futureButton: "Recording features coming soon",
+    futureButton: "Open my archive",
   },
 };
 

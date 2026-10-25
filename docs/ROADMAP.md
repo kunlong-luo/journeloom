@@ -28,6 +28,14 @@
 - 真正的离线数据编辑与可恢复备份从 M1 开始，直至 M5 端到端验收后才可以宣称实现完整的离线档案能力。
 - 发布前确认 GitHub Actions CI 全绿，且 GitHub Pages 部署源设为 GitHub Actions。
 
+### M1–M4 增量实现（待全面验收）
+
+- M1：Dexie v1 schema、Profile 创建/修改/切换与删除已实现；存储恢复用内存 IndexedDB 测试。
+- M2：事件 CRUD、日期精度、软删除/恢复、时间轴筛选和搜索已实现。
+- M3：Markdown 编辑预览、标签、事件本地附件已实现；人物/来源/章节关联待办。
+- M4：完整 ZIP 私人备份、摘要校验、无覆盖导入、隐私审核后的 Markdown 导出已实现；跨浏览器大型附件和 PDF 视觉导出待办。
+- M5：继续覆盖离线恢复、Safari/iOS、低存储配额、无障碍、性能以及备份恶意文件防护。
+
 ## 3. 推荐标签
 
 `type:feature`, `type:bug`, `type:docs`, `area:storage`, `area:timeline`, `area:media`, `area:export`, `area:privacy`, `priority:P0`, `priority:P1`, `good-first-issue`。

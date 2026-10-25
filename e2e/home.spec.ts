@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("landing page is interactive and clearly labeled as a preview", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.getByText(/目前展示的是虚构示例/)).toBeVisible();
+  await expect(page.getByText(/下方时间轴是虚构示例/)).toBeVisible();
 
   await page.getByRole("group", { name: "筛选事件类别" }).getByRole("button", { name: "重要时刻" }).click();
   await expect(page.getByText("毕业，也是一次出发")).toBeVisible();
