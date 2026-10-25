@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   ArrowDownRight,
   ArrowRight,
@@ -74,6 +75,7 @@ export function HomeExperience() {
           </a>
 
           <nav className="hidden items-center gap-9 text-[13px] font-medium text-[var(--muted)] md:flex" aria-label="Main navigation">
+            <Link href="/archive" className="nav-link">{copy.nav.archive}</Link>
             <a href="#timeline" className="nav-link">{copy.nav.timeline}</a>
             <a href="#philosophy" className="nav-link">{copy.nav.philosophy}</a>
             <a href="#roadmap" className="nav-link">{copy.nav.roadmap}</a>
@@ -83,9 +85,7 @@ export function HomeExperience() {
             <button type="button" onClick={switchLocale} className="language-button" aria-label={copy.language} title={copy.language}>
               <Globe2 size={16} aria-hidden="true" /> {locale === "zh" ? "EN" : "中文"}
             </button>
-            <a className="header-source" href={githubUrl} target="_blank" rel="noreferrer">
-              {copy.nav.github} <ArrowUpRight size={15} aria-hidden="true" />
-            </a>
+            <Link className="header-source" href="/archive">{copy.nav.archive} <ArrowUpRight size={15} aria-hidden="true" /></Link>
           </div>
 
           <button
@@ -101,6 +101,7 @@ export function HomeExperience() {
         </div>
         {mobileMenuOpen ? (
           <nav id="mobile-navigation" className="site-container flex flex-col gap-1 border-t border-[var(--border)] py-4 text-sm md:hidden" aria-label="Mobile navigation">
+            <Link href="/archive" className="rounded-xl px-3 py-3 hover:bg-white" onClick={() => setMobileMenuOpen(false)}>{copy.nav.archive}</Link>
             {([
               ["#timeline", copy.nav.timeline],
               ["#philosophy", copy.nav.philosophy],
@@ -126,8 +127,8 @@ export function HomeExperience() {
               </h1>
               <p className="mt-8 max-w-[505px] text-[15px] leading-[1.95] text-[var(--muted)] sm:text-[16px]">{copy.heroBody}</p>
               <div className="mt-10 flex flex-wrap items-center gap-4">
-                <a href="#timeline" className="primary-action">{copy.explore} <ArrowRight size={17} aria-hidden="true" /></a>
-                <a href={githubUrl} target="_blank" rel="noreferrer" className="text-action">{copy.source} <ArrowUpRight size={16} aria-hidden="true" /></a>
+                <Link href="/archive" className="primary-action">{copy.startArchive} <ArrowRight size={17} aria-hidden="true" /></Link>
+                <a href="#timeline" className="text-action">{copy.explore} <ArrowUpRight size={16} aria-hidden="true" /></a>
               </div>
               <div className="mt-11 flex items-start gap-3 border-t border-[var(--border)] pt-5 text-[12px] leading-6 text-[var(--muted)]">
                 <ShieldCheck size={17} className="mt-0.5 shrink-0 text-[var(--sage-dark)]" aria-hidden="true" />
@@ -273,7 +274,7 @@ export function HomeExperience() {
             <Feather size={28} strokeWidth={1.3} className="mb-6 text-[var(--sage-dark)]" aria-hidden="true" />
             <h2 className="font-display text-[clamp(2.15rem,4.2vw,3.75rem)] tracking-[-0.065em]">{copy.closingTitle}</h2>
             <p className="mt-5 max-w-[550px] text-[14px] leading-7 text-[var(--muted)]">{copy.closingBody}</p>
-            <span className="mt-8 inline-flex cursor-not-allowed items-center gap-2 rounded-full border border-[#9eada2] px-6 py-3 text-[12px] text-[var(--sage-dark)]" aria-disabled="true"><BookOpenText size={16} aria-hidden="true" /> {copy.futureButton}</span>
+            <Link href="/archive" className="mt-8 inline-flex items-center gap-2 rounded-full border border-[#9eada2] px-6 py-3 text-[12px] text-[var(--sage-dark)] transition-colors hover:bg-white"><BookOpenText size={16} aria-hidden="true" /> {copy.futureButton}</Link>
           </div>
         </section>
       </main>

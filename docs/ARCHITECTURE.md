@@ -51,6 +51,16 @@ docs/
 - IndexedDB、OPFS、浏览器文件接口和 Service Worker 只能在浏览器环境访问；本地存储逻辑应放入 Client Component 或客户端 adapter，避免在 Next.js 预渲染阶段读取 `window`。
 - M0 仅有匿名、虚构的交互预览；M1 接入 Dexie 与持久化档案。已创建的 Service Worker **仅缓存页面外壳和同源静态资源**，不缓存用户记录。
 
+### 当前实现进度（M1–M4 初版）
+
+- `src/domain/models.ts` / `life-date.ts`：Zod 约束与不确定日期校验；日期未知时不生成假日期。
+- `src/storage/database.ts` / `repository.ts`：Dexie v1 schema；单一浏览器内的 profiles、events、media 三张表，事件软删除与附件写入事务。
+- `src/features/archive/`：真实档案 CRUD、事件 Markdown、附件上传下载与隐私状态；Next.js `/archive/` 静态路由。
+- `src/portability/backup.ts`：ZIP `manifest.json`、文件字节数与 SHA-256 校验、恢复预览、仅新增的事务导入。
+- `src/portability/markdown.ts`：仅显式允许导出的事件进入阅读文档，且 UI 必须再次确认。
+
+**限制：** 附件当前存于 IndexedDB Blob，单文件最多 10 MB；出于浏览器内存限制，备份设有体积上限。原始大型媒体 OPFS/流式 ZIP 尚未实现，不能宣称适合海量照片或视频档案。JSON/ZIP 恢复不会直接执行外部代码。
+
 ## 3. 数据流
 
 `表单或 Markdown → 领域验证 → 数据事务 → Dexie/附件存储 → 时间轴和搜索索引 → 视图渲染`
