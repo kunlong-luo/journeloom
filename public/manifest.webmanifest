@@ -1,0 +1,12 @@
+{
+  "name": "Journeloom — Every Life Has a Story",
+  "short_name": "Journeloom",
+  "description": "A personal timeline and memory archive, private by design.",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FAF7F2",
+  "theme_color": "#FAF7F2",
+  "icons": [{ "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

@@ -4,7 +4,7 @@
 
 **新仓库建议：** `kunlong-luo/journeloom`，公开源码、MIT 许可证、私人示例数据不得入库。
 
-建议目录：`src/`、`public/`、`docs/`、`e2e/`、`.github/workflows/`、`README.md`、`README.zh-CN.md`、`LICENSE`、`SECURITY.md`、`CONTRIBUTING.md`。
+目录：`src/app/`（Next.js App Router）、`src/components/`、`src/i18n/`、`public/`、`docs/`、`e2e/`、`.github/workflows/` 等。M0 使用 Node.js 22、Next.js 16、React 19 和 Tailwind CSS 4。
 
 分支采用 `main` 保护 + `feat/<scope>` / `fix/<scope>` / `docs/<scope>`，PR squash merge。CI 至少包括 typecheck、lint、unit、E2E、build，主分支成功后才部署静态页面。
 
@@ -12,7 +12,7 @@
 
 | Milestone | Issues | 可验证交付 |
 |---|---|---|
-| M0 项目基础 | #1 仓库搭建、#2 CI/测试、#3 双语与品牌 token | 空壳 PWA 可 build，CI 通过 |
+| M0 项目基础 | #1 仓库搭建、#2 CI/测试、#3 双语与品牌 token | Next.js 静态预览可 build、语言与示例筛选可用、PWA 离线外壳、CI 通过 |
 | M1 本地数据 | #4 领域模型、#5 Dexie schema/migration、#6 Profile CRUD | 刷新后仍保留多个档案 |
 | M2 人生事件 | #7 Event CRUD、#8 日期精度、#9 时间轴筛选 | 不确定日期可正确显示 |
 | M3 内容记录 | #10 Markdown、#11 来源/人物关联、#12 媒体 | 事件与材料关联稳定，文件可校验 |
@@ -20,6 +20,13 @@
 | M5 发布验收 | #16 E2E、#17 无障碍与手机布局、#18 性能/离线、#19 安全文档 | 完成 MVP 验收与 v0.1.0 标签 |
 
 这些 # 仅表示建议的创建顺序，**不是已经存在的 GitHub Issue 编号**。
+
+### M0 范围说明
+
+- 首页中的所有时间轴事件均为静态虚构示例，不能创建/修改个人记录，不向任何服务器上传个人内容。
+- 支持中英双语和响应式演示、原生 Web App manifest、静态外壳离线缓存、单元测试与 Playwright 浏览器烟测。
+- 真正的离线数据编辑与可恢复备份从 M1 开始，直至 M5 端到端验收后才可以宣称实现完整的离线档案能力。
+- 发布前确认 GitHub Actions CI 全绿，且 GitHub Pages 部署源设为 GitHub Actions。
 
 ## 3. 推荐标签
 
