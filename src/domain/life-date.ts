@@ -51,7 +51,10 @@ export function formatLifeDate(date: LifeDate, locale: "zh" | "en" = "zh"): stri
 export function lifeDateSortKey(date: LifeDate): string {
   if (date.precision === "unknown") return "0000-00-00";
   if (date.precision === "approximate") return date.earliest?.slice(0, 10).padEnd(10, "0") ?? "0000-00-00";
-  return (date.iso ?? "").padEnd(10, "0");
+  // This anchor is for sorting only; the user's displayed precision never changes.
+  if (date.precision === "year") return `${date.iso}-01-01`;
+  if (date.precision === "month") return `${date.iso}-01`;
+  return date.iso ?? "0000-00-00";
 }
 
 export function newestFirst(a: LifeEvent, b: LifeEvent): number {

@@ -122,7 +122,7 @@ function ArchiveWorkspace() {
           {profiles.length ? <div className="mt-4 flex flex-wrap gap-2 lg:flex-col">
             {profiles.map((item) => <button key={item.id} type="button" onClick={() => { setSelectedId(item.id); setQuery(""); setCategory("all"); setYear("all"); }} className={`rounded-xl px-4 py-3 text-left text-sm transition-colors ${item.id === selectedId ? "bg-[var(--ink)] text-white" : "border border-[var(--border)] bg-white hover:bg-[#f2f0e8]"}`} aria-pressed={item.id === selectedId}><span className="block truncate font-semibold">{item.displayName}</span><span className={`mt-1 block text-[10px] ${item.id === selectedId ? "text-[#b5c9c2]" : "text-[var(--muted)]"}`}>私人生活档案</span></button>)}
           </div> : <p className="mt-5 text-xs leading-6 text-[var(--muted)]">还没有档案。点击右上角的加号，创建你的第一份私人记录。</p>}
-          <div className="mt-8 rounded-xl border border-[#e5e0d8] bg-[#f5f0e8] p-4"><LockKeyhole className="text-[var(--sage-dark)]" size={20} /><p className="mt-3 text-xs font-semibold">隐私从第一天开始</p><p className="mt-2 text-[11px] leading-6 text-[var(--muted)]">所有记录写入当前设备的 IndexedDB。没有用户账号，也没有自动云上传。请定期做好完整备份。</p></div>
+          <div className="mt-8 rounded-xl border border-[#e5e0d8] bg-[#f5f0e8] p-4"><LockKeyhole className="text-[var(--sage-dark)]" size={20} /><p className="mt-3 text-xs font-semibold">隐私从第一天开始</p><p className="mt-2 text-[11px] leading-6 text-[var(--muted)]">所有记录写入当前设备的 IndexedDB。没有用户账号，也没有自动云上传；但本地数据尚未静态加密，共用设备时请注意账户安全，并定期完整备份。</p></div>
         </aside>
 
         <main className="min-w-0">

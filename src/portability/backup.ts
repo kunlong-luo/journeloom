@@ -79,9 +79,8 @@ function assertDecompressionLimit(entry: JSZip.JSZipObject, max: number) {
 
 export async function createBackup(): Promise<Blob> {
   const db = getDb();
-  const [profiles, events, media] = await Promise.all([
-    db.profiles.toArray(), db.events.toArray(), db.media.toArray(),
-  ]);
+  const [profiles, events, media] = await db.transaction("r", db.profiles, db.events, db.media,
+    () => Promise.all([db.profiles.toArray(), db.events.toArray(), db.media.toArray()]));
   const snapshot: BackupSnapshot = { profiles, events, media, createdAt: new Date().toISOString() };
   ensureValidRelations(snapshot);
 

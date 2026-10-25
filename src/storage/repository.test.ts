@@ -30,6 +30,10 @@ describe("local-first repository", () => {
       summaryMarkdown: "", tags: [], visibility: "private",
     })).rejects.toThrow("日历日期");
     expect(await getDb().events.count()).toBe(0);
+    await expect(saveEvent(profile.id, {
+      title: "倒置的时间", category: "other", startDate: { precision: "year", iso: "2025" }, endDate: { precision: "year", iso: "2018" },
+      summaryMarkdown: "", tags: [], visibility: "private",
+    })).rejects.toThrow("结束时间");
   });
 
   it("stores a local attachment with a digest and links it to its event", async () => {

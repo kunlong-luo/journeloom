@@ -70,7 +70,7 @@ export function BackupPanel({ profile, events }: Props) {
     <section className="mt-9 rounded-2xl border border-[#d8ded7] bg-[#f0f2ed] p-5 sm:p-6" aria-labelledby="backup-title">
       <div className="flex items-start gap-3"><Archive size={20} className="mt-0.5 text-[var(--sage-dark)]" aria-hidden="true" /><div>
         <h2 id="backup-title" className="font-display text-xl">数据由你保管</h2>
-        <p className="mt-1 text-xs leading-6 text-[var(--muted)]">浏览器存储可能被清除。请定期下载完整私人备份；它与可分享的阅读导出不是同一回事。</p>
+        <p className="mt-1 text-xs leading-6 text-[var(--muted)]">浏览器存储可能被清除。请定期下载完整私人备份；ZIP 目前未加密，切勿直接分享。它与可分享的阅读导出不是同一回事。</p>
       </div></div>
       <div className="mt-5 grid gap-2 sm:grid-cols-3">
         <button type="button" className="archive-button-primary flex items-center justify-center gap-2" disabled={pending} onClick={() => void exportPrivateBackup()}><Download size={15} aria-hidden="true" /> 完整私人备份</button>

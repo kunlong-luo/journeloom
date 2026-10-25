@@ -1,5 +1,5 @@
 import { eventSchema, mediaMetaSchema, profileSchema, type EventInput, type LifeEvent, type MediaMeta, type MediaRecord, type Profile, type ProfileInput } from "@/domain/models";
-import { validateLifeDate } from "@/domain/life-date";
+import { lifeDateSortKey, validateLifeDate } from "@/domain/life-date";
 import { getDb } from "./database";
 
 function requireValidDate(date: EventInput["startDate"] | undefined): void {
@@ -42,6 +42,10 @@ export async function deleteProfile(id: string): Promise<void> {
 export async function saveEvent(profileId: string, input: EventInput, id?: string): Promise<LifeEvent> {
   requireValidDate(input.startDate);
   requireValidDate(input.endDate);
+  if (input.endDate && !["unknown", "approximate"].includes(input.startDate.precision) && !["unknown", "approximate"].includes(input.endDate.precision) &&
+      (input.endDate.precision === "year" ? `${input.endDate.iso}-12-31` : input.endDate.precision === "month" ? `${input.endDate.iso}-31` : input.endDate.iso ?? "") < lifeDateSortKey(input.startDate)) {
+    throw new Error("结束时间不能早于开始时间");
+  }
   const db = getDb();
   const profile = await db.profiles.get(profileId);
   if (!profile) throw new Error("无法找到所属档案");
