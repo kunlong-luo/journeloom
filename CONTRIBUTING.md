@@ -1,13 +1,15 @@
 # Contributing to Journeloom
 
-Welcome! Journeloom is in its initial product-design phase.
+Welcome! Journeloom is an early-stage Next.js application. M0 offers a bilingual,
+fictional timeline preview; persistent archives begin in M1.
 
 ## Before opening a PR
 
 1. Read [PRD](docs/PRD.md), [Architecture](docs/ARCHITECTURE.md) and [Data Model](docs/DATA_MODEL.md).
 2. Open an issue for any change affecting storage, backup format, sharing or privacy.
 3. Keep PRs focused; describe user value, test coverage, security considerations and migration impact.
-4. Run the project's checks once the application scaffold is added.
+4. Run `npm run lint`, `npm run typecheck`, `npm run test:unit`,
+   `npm run test:e2e`, and `npm run build` for application changes.
 
 ## Branch and commit naming
 

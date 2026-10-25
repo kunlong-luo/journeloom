@@ -6,7 +6,7 @@
 
 | 层 | 推荐 | 说明 |
 |---|---|---|
-| UI | React + TypeScript + Vite | 静态构建、类型安全、便于复用交互模式 |
+| UI | Next.js 16 App Router + React 19 + TypeScript | 按用户选择的 Next.js 框架构建；首期只使用可静态导出的路由/组件 |
 | 样式 | Tailwind CSS | 共享设计思路，不直接耦合 Pagevela 主题 |
 | 状态 | Zustand | 当前视图/筛选/编辑器状态，数据库是事实源 |
 | 数据 | Dexie + IndexedDB | 本地结构化档案、迁移版本管理 |
@@ -14,7 +14,7 @@
 | 编辑 | Markdown 编辑器与阅读渲染 | 保留纯文本可迁移性；不强绑某种私有格式 |
 | 导出 | ZIP + JSON manifest + Markdown + 浏览器打印 | 备份与阅读导出严格分离 |
 | 测试 | Vitest + Playwright | 单元、迁移、跨浏览器端到端 |
-| 部署 | GitHub Pages | 不需要服务端，也不承担个人数据持久化 |
+| 部署 | Next.js `output: 'export'` + GitHub Pages | 生成 `out/`；不需要服务端，不承担个人数据持久化 |
 
 **架构原则：** 独立仓库、模块边界清楚、导出格式优先稳定；不得从 Pagevela 直接读取浏览器数据库。需要复用时复制/抽离经测试的通用逻辑（导出、Markdown、i18n、PWA），而非把所有简历业务类型迁移过来。
 
@@ -22,7 +22,7 @@
 
 ```text
 src/
-  app/              # 启动、路由、全局布局、错误边界
+  app/              # Next.js App Router、全局布局、错误边界
   features/
     profiles/       # 档案
     timeline/       # 时间轴视图与索引
@@ -37,9 +37,19 @@ src/
   i18n/             # 中文与英文
   styles/           # 设计 token
   test/             # fixtures 与辅助函数
+public/             # manifest、简化图标、静态资源和离线外壳 Service Worker
+e2e/                # Playwright 浏览器旅程测试
+.github/workflows/   # CI 与 GitHub Pages 静态部署
 docs/
   PRD.md ARCHITECTURE.md DATA_MODEL.md ROADMAP.md BRAND.md
 ```
+
+### Next.js 与本地优先约束
+
+- 首期使用 `output: 'export'` 与 `trailingSlash: true`，所有页面构建为静态 HTML/CSS/JS；GitHub Pages 部署时通过 `NEXT_PUBLIC_BASE_PATH=/journeloom` 设置子路径。
+- 不依赖动态 API Route、Server Actions、cookies、SSR 或需要服务器的图片优化。未来如需账号与同步，另做经过评审的服务端架构，不把本地事件静默传往服务器。
+- IndexedDB、OPFS、浏览器文件接口和 Service Worker 只能在浏览器环境访问；本地存储逻辑应放入 Client Component 或客户端 adapter，避免在 Next.js 预渲染阶段读取 `window`。
+- M0 仅有匿名、虚构的交互预览；M1 接入 Dexie 与持久化档案。已创建的 Service Worker **仅缓存页面外壳和同源静态资源**，不缓存用户记录。
 
 ## 3. 数据流
 
