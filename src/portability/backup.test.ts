@@ -3,6 +3,7 @@ import JSZip from "jszip";
 import { getDb, resetDbForTests } from "@/storage/database";
 import { attachMedia, createProfile, saveEvent } from "@/storage/repository";
 import { createBackup, importBackup, readBackup } from "./backup";
+import { decryptBackup, encryptBackup } from "./encrypted-backup";
 import { createReadingMarkdown, reviewableEvents } from "./markdown";
 
 afterEach(async () => {
@@ -24,6 +25,14 @@ async function seed() {
 }
 
 describe("private ZIP backup and safe readable export", () => {
+  it("restores a validated full ZIP after authenticated envelope decryption", async () => {
+    await seed();
+    const protectedFile = await encryptBackup(await createBackup(), "fictional-backup-passphrase");
+    const snapshot = await readBackup(await decryptBackup(protectedFile, "fictional-backup-passphrase"));
+    expect(snapshot.events).toHaveLength(2);
+    expect(snapshot.events.some((item) => item.title === "私密家庭记录")).toBe(true);
+  });
+
   it("backs up, validates, and restores every event without overwriting existing records", async () => {
     await seed();
     const blob = await createBackup();
