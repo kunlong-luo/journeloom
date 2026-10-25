@@ -28,7 +28,7 @@ test("profiles and events survive refresh, and deleted events can be restored", 
   await editDialog.getByRole("combobox", { name: "日期精度" }).first().selectOption("year");
   await editDialog.getByRole("spinbutton", { name: "发生时间日期" }).fill("2018");
   await editDialog.getByRole("button", { name: "保存修改" }).click();
-  await expect(page.getByText("2018 年")).toBeVisible();
+  await expect(page.getByRole("article").getByText("2018 年")).toBeVisible();
 
   page.once("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "删除 一段值得保存的旅行" }).click();
@@ -71,7 +71,7 @@ test("attachments stay local and public reading export requires explicit approva
   await page.locator('input[type="file"][aria-label="为 一段值得保存的旅行 添加附件"]').setInputFiles({
     name: "fictional-note.txt", mimeType: "text/plain", buffer: Buffer.from("Illustrative file only"),
   });
-  await expect(page.getByRole("button", { name: "fictional-note.txt" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "fictional-note.txt", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "阅读版 Markdown" })).toBeDisabled();
 
   await page.getByRole("button", { name: "编辑 一段值得保存的旅行" }).click();
