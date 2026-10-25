@@ -42,6 +42,7 @@ test("profiles and events survive refresh, and deleted events can be restored", 
 test("private ZIP can be previewed and restored in a fresh browser context", async ({ page, browser }) => {
   await createSampleProfileAndEvent(page);
   const downloadPromise = page.waitForEvent("download");
+  page.once("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "完整私人备份" }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/\.zip$/);
@@ -53,10 +54,43 @@ test("private ZIP can be previewed and restored in a fresh browser context", asy
   try {
     await cleanPage.goto("/archive/");
     const fs = await import("node:fs/promises");
-    await cleanPage.getByRole("button", { name: "验证并恢复 ZIP" }).click();
-    await cleanPage.locator('input[type="file"][aria-label="选择 Journeloom ZIP 备份"]').setInputFiles({
+    await cleanPage.getByRole("button", { name: "验证并恢复备份" }).click();
+    await cleanPage.locator('input[type="file"][aria-label="选择 Journeloom 备份文件"]').setInputFiles({
       name: "test-backup.zip", mimeType: "application/zip", buffer: await fs.readFile(path!),
     });
+    await expect(cleanPage.getByText(/恢复前预览/)).toBeVisible();
+    await cleanPage.getByRole("button", { name: "确认恢复" }).click();
+    await expect(cleanPage.getByRole("heading", { name: "我的测试档案" })).toBeVisible();
+    await expect(cleanPage.getByRole("heading", { name: "一段值得保存的旅行" })).toBeVisible();
+  } finally {
+    await cleanContext.close();
+  }
+});
+
+test("encrypted .jloom backups reject the wrong password and restore in a clean browser", async ({ page, browser }) => {
+  await createSampleProfileAndEvent(page);
+  const password = "a-long-fictional-passphrase-for-ci";
+  await page.getByLabel("加密备份口令", { exact: true }).fill(password);
+  await page.getByLabel("再次输入加密口令").fill(password);
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "加密并下载 .jloom" }).click();
+  const downloaded = await downloadPromise;
+  expect(downloaded.suggestedFilename()).toMatch(/\.jloom$/);
+
+  const cleanContext = await browser.newContext({ baseURL: "http://127.0.0.1:3000" });
+  try {
+    const cleanPage = await cleanContext.newPage();
+    await cleanPage.goto("/archive/");
+    await cleanPage.locator('input[type="file"][aria-label="选择 Journeloom 备份文件"]').setInputFiles({
+      name: "protected.jloom", mimeType: "application/octet-stream",
+      buffer: await (await import("node:fs/promises")).readFile((await downloaded.path())!),
+    });
+    await expect(cleanPage.getByRole("heading", { name: /解锁加密备份/ })).toBeVisible();
+    await cleanPage.getByLabel("加密备份解锁口令").fill("incorrect-password");
+    await cleanPage.getByRole("button", { name: "验证口令并预览" }).click();
+    await expect(cleanPage.getByText("口令不正确或加密备份已损坏", { exact: true })).toBeVisible();
+    await cleanPage.getByLabel("加密备份解锁口令").fill(password);
+    await cleanPage.getByRole("button", { name: "验证口令并预览" }).click();
     await expect(cleanPage.getByText(/恢复前预览/)).toBeVisible();
     await cleanPage.getByRole("button", { name: "确认恢复" }).click();
     await expect(cleanPage.getByRole("heading", { name: "我的测试档案" })).toBeVisible();

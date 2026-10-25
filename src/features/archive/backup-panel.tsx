@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Archive, Download, FileText, UploadCloud } from "lucide-react";
+import { Archive, Download, FileText, LockKeyhole, UploadCloud } from "lucide-react";
 import type { LifeEvent, Profile } from "@/domain/models";
 import { createBackup, importBackup, readBackup, type BackupSnapshot } from "@/portability/backup";
+import { decryptBackup, encryptBackup, isEncryptedBackup, MIN_BACKUP_PASSPHRASE_LENGTH } from "@/portability/encrypted-backup";
 import { createReadingMarkdown, reviewableEvents } from "@/portability/markdown";
 
 export function downloadBlob(blob: Blob, fileName: string) {
@@ -23,17 +24,33 @@ export function BackupPanel({ profile, events }: Props) {
   const fileInput = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState(false);
   const [incoming, setIncoming] = useState<BackupSnapshot | null>(null);
+  const [encryptedFile, setEncryptedFile] = useState<File | null>(null);
+  const [exportPassphrase, setExportPassphrase] = useState("");
+  const [exportPassphraseRepeat, setExportPassphraseRepeat] = useState("");
+  const [restorePassphrase, setRestorePassphrase] = useState("");
   const [reviewMarkdown, setReviewMarkdown] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const candidates = reviewableEvents(events);
 
-  async function exportPrivateBackup() {
+  async function exportPrivateBackup(encrypted: boolean) {
+    if (encrypted && (exportPassphrase.trim().length < MIN_BACKUP_PASSPHRASE_LENGTH || exportPassphrase !== exportPassphraseRepeat)) {
+      setError("加密口令至少需要 12 个字符，且两次输入必须一致");
+      return;
+    }
+    if (!encrypted && !window.confirm("即将下载的 ZIP 完全未加密，任何拿到文件的人都能查看你的全部记录和附件。确定继续吗？")) return;
     setPending(true); setError(""); setMessage("");
     try {
       const blob = await createBackup();
-      downloadBlob(blob, `journeloom-private-backup-${new Date().toISOString().slice(0, 10)}.zip`);
-      setMessage("私人完整备份已准备下载。请妥善保管，其中可能包含照片和敏感信息。");
+      if (encrypted) {
+        const protectedBlob = await encryptBackup(blob, exportPassphrase);
+        downloadBlob(protectedBlob, `journeloom-private-backup-${new Date().toISOString().slice(0, 10)}.jloom`);
+        setExportPassphrase(""); setExportPassphraseRepeat("");
+        setMessage("加密备份已下载。口令不会保存：忘记口令将无法恢复，请另行安全保管。");
+      } else {
+        downloadBlob(blob, `journeloom-private-backup-${new Date().toISOString().slice(0, 10)}.zip`);
+        setMessage("未加密 ZIP 已下载。此文件包含全部私人数据，请勿分享或上传到公开仓库。");
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "备份失败");
     } finally { setPending(false); }
@@ -41,10 +58,25 @@ export function BackupPanel({ profile, events }: Props) {
 
   async function chooseBackup(file: File | undefined) {
     if (!file) return;
-    setPending(true); setError(""); setMessage(""); setIncoming(null);
-    try { setIncoming(await readBackup(file)); }
+    setPending(true); setError(""); setMessage(""); setIncoming(null); setEncryptedFile(null); setRestorePassphrase("");
+    try {
+      if (await isEncryptedBackup(file)) setEncryptedFile(file);
+      else if (file.name.toLowerCase().endsWith(".jloom")) setError("加密备份文件头无效，文件可能已损坏");
+      else setIncoming(await readBackup(file));
+    }
     catch (reason) { setError(reason instanceof Error ? reason.message : "无法读取备份"); }
     finally { setPending(false); if (fileInput.current) fileInput.current.value = ""; }
+  }
+
+  async function decryptSelectedBackup() {
+    if (!encryptedFile || !restorePassphrase) return;
+    setPending(true); setError(""); setMessage(""); setIncoming(null);
+    try {
+      const zip = await decryptBackup(encryptedFile, restorePassphrase);
+      setIncoming(await readBackup(zip));
+      setEncryptedFile(null); setRestorePassphrase("");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "无法验证加密备份"); }
+    finally { setPending(false); }
   }
 
   async function confirmImport() {
@@ -70,14 +102,36 @@ export function BackupPanel({ profile, events }: Props) {
     <section className="mt-9 rounded-2xl border border-[#d8ded7] bg-[#f0f2ed] p-5 sm:p-6" aria-labelledby="backup-title">
       <div className="flex items-start gap-3"><Archive size={20} className="mt-0.5 text-[var(--sage-dark)]" aria-hidden="true" /><div>
         <h2 id="backup-title" className="font-display text-xl">数据由你保管</h2>
-        <p className="mt-1 text-xs leading-6 text-[var(--muted)]">浏览器存储可能被清除。请定期下载完整私人备份；ZIP 目前未加密，切勿直接分享。它与可分享的阅读导出不是同一回事。</p>
+        <p className="mt-1 text-xs leading-6 text-[var(--muted)]">浏览器存储可能被清除。推荐下载口令加密的 .jloom 私人备份；旧版未加密 ZIP 仅作兼容。加密只保护下载的文件，当前浏览器中的 IndexedDB 仍未加密。</p>
       </div></div>
-      <div className="mt-5 grid gap-2 sm:grid-cols-3">
-        <button type="button" className="archive-button-primary flex items-center justify-center gap-2" disabled={pending} onClick={() => void exportPrivateBackup()}><Download size={15} aria-hidden="true" /> 完整私人备份</button>
-        <button type="button" className="archive-button-ghost flex items-center justify-center gap-2" disabled={pending} onClick={() => fileInput.current?.click()}><UploadCloud size={15} aria-hidden="true" /> 验证并恢复 ZIP</button>
+      <div className="mt-5 rounded-xl border border-[#c8d5cc] bg-white p-4">
+        <div className="flex items-center gap-2 text-sm font-semibold"><LockKeyhole size={16} aria-hidden="true" /> 创建加密私人备份</div>
+        <p className="mt-2 text-xs leading-6 text-[var(--muted)]">使用 AES-256-GCM 和口令派生密钥；至少 12 个字符。口令不会上传或保存在浏览器中，遗忘后无法找回。</p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="archive-field">加密备份口令
+            <input className="archive-input" type="password" autoComplete="new-password" aria-label="加密备份口令" value={exportPassphrase} onChange={(event) => setExportPassphrase(event.target.value)} placeholder="建议使用多词组合口令" />
+          </label>
+          <label className="archive-field">再次输入口令
+            <input className="archive-input" type="password" autoComplete="new-password" aria-label="再次输入加密口令" value={exportPassphraseRepeat} onChange={(event) => setExportPassphraseRepeat(event.target.value)} placeholder="请重复相同口令" />
+          </label>
+        </div>
+        <button type="button" className="archive-button-primary mt-3 flex items-center gap-2" disabled={pending || exportPassphrase.trim().length < MIN_BACKUP_PASSPHRASE_LENGTH || exportPassphrase !== exportPassphraseRepeat} onClick={() => void exportPrivateBackup(true)}><Download size={15} aria-hidden="true" /> 加密并下载 .jloom</button>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <button type="button" className="archive-button-ghost flex items-center justify-center gap-2" disabled={pending} onClick={() => void exportPrivateBackup(false)}><Download size={15} aria-hidden="true" /> 完整私人备份（未加密 ZIP）</button>
+        <button type="button" className="archive-button-ghost flex items-center justify-center gap-2" disabled={pending} onClick={() => fileInput.current?.click()}><UploadCloud size={15} aria-hidden="true" /> 验证并恢复备份</button>
         <button type="button" className="archive-button-ghost flex items-center justify-center gap-2" disabled={!profile || candidates.length === 0 || pending} onClick={() => setReviewMarkdown(true)}><FileText size={15} aria-hidden="true" /> 阅读版 Markdown</button>
       </div>
-      <input ref={fileInput} className="sr-only" type="file" accept=".zip,application/zip" aria-label="选择 Journeloom ZIP 备份" onChange={(event) => void chooseBackup(event.target.files?.[0])} />
+      <input ref={fileInput} className="sr-only" type="file" accept=".jloom,.zip,application/zip,application/octet-stream" aria-label="选择 Journeloom 备份文件" onChange={(event) => void chooseBackup(event.target.files?.[0])} />
+
+      {encryptedFile ? <div className="mt-5 rounded-xl border border-[#c8d5cc] bg-white p-4 text-sm">
+        <h3 className="font-semibold">解锁加密备份（尚未写入）</h3>
+        <p className="mt-2 text-xs text-[var(--muted)]">已选择：{encryptedFile.name}。输入创建备份时的口令，验证成功后才会展示恢复预览。</p>
+        <label className="archive-field mt-3">加密备份解锁口令
+          <input className="archive-input" type="password" autoComplete="off" aria-label="加密备份解锁口令" value={restorePassphrase} onChange={(event) => setRestorePassphrase(event.target.value)} />
+        </label>
+        <div className="mt-3 flex gap-2"><button type="button" className="archive-button-primary" disabled={pending || !restorePassphrase} onClick={() => void decryptSelectedBackup()}>验证口令并预览</button><button type="button" className="archive-button-ghost" disabled={pending} onClick={() => { setEncryptedFile(null); setRestorePassphrase(""); }}>取消</button></div>
+      </div> : null}
 
       {incoming ? <div className="mt-5 rounded-xl border border-[#c8d5cc] bg-white p-4 text-sm">
         <h3 className="font-semibold">恢复前预览（尚未写入）</h3>

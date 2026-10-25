@@ -57,6 +57,7 @@ docs/
 - `src/storage/database.ts` / `repository.ts`：Dexie v1 schema；单一浏览器内的 profiles、events、media 三张表，事件软删除与附件写入事务。
 - `src/features/archive/`：真实档案 CRUD、事件 Markdown、附件上传下载与隐私状态；Next.js `/archive/` 静态路由。
 - `src/portability/backup.ts`：ZIP `manifest.json`、文件字节数与 SHA-256 校验、恢复预览、仅新增的事务导入。
+- `src/portability/encrypted-backup.ts`：可选的 `.jloom` 认证加密外壳；版本化头部、随机 128 位盐与 96 位 IV、PBKDF2-HMAC-SHA256（600,000 次）、AES-256-GCM（128 位标签）；头部也纳入认证数据。
 - `src/portability/markdown.ts`：仅显式允许导出的事件进入阅读文档，且 UI 必须再次确认。
 
 **限制：** 附件当前存于 IndexedDB Blob，单文件最多 10 MB；出于浏览器内存限制，备份设有体积上限。原始大型媒体 OPFS/流式 ZIP 尚未实现，不能宣称适合海量照片或视频档案。JSON/ZIP 恢复不会直接执行外部代码。
@@ -84,6 +85,7 @@ docs/
 - 默认无账号、无服务端、无第三方内容上传。
 - CSP、XSS 防护、Markdown HTML 净化、文件 MIME 和尺寸校验。
 - 敏感数据不放在 URL 查询参数/片段或 analytics event 属性中。
-- 不把本地浏览器存储包装成“端到端加密”：v0.1 没有默认静态加密保证。
-- 后续加密备份可采用 Web Crypto AES-GCM 与强口令 KDF；须包含独立 salt、nonce、版本及篡改检测，在安全评审后上线。
+- 不把本地浏览器存储包装成“端到端加密”：当前仅加密导出的 `.jloom` 文件，IndexedDB 依然是明文存储。
+- `.jloom` 采用 Web Crypto AES-GCM 与基于口令的密钥派生，使用独立随机盐/IV、格式版本与认证标签，校验错误口令和篡改时不区分失败原因。口令只在操作期间用于派生密钥，不做持久化；忘记口令无法恢复文件。
+- 旧版 `.zip` 导出与恢复保留兼容，但在 UI 中必须明确告知它没有加密。不能把 `.jloom` 文件视为已经完成设备加密或云端同步。
 - 云 AI 为可选、明确授权的未来功能；从本地发给模型的内容范围和去向应可见。
