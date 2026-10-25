@@ -88,7 +88,7 @@ test("encrypted .jloom backups reject the wrong password and restore in a clean 
     await expect(cleanPage.getByRole("heading", { name: /解锁加密备份/ })).toBeVisible();
     await cleanPage.getByLabel("加密备份解锁口令").fill("incorrect-password");
     await cleanPage.getByRole("button", { name: "验证口令并预览" }).click();
-    await expect(cleanPage.getByRole("alert")).toContainText("口令不正确或加密备份已损坏");
+    await expect(cleanPage.getByText("口令不正确或加密备份已损坏", { exact: true })).toBeVisible();
     await cleanPage.getByLabel("加密备份解锁口令").fill(password);
     await cleanPage.getByRole("button", { name: "验证口令并预览" }).click();
     await expect(cleanPage.getByText(/恢复前预览/)).toBeVisible();
