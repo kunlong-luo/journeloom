@@ -18,6 +18,7 @@ Journeloom 是一个 local-first 的人生经历与数字记忆管理工具，�
 |---|---|
 | `docs/PRD.md` | 目标用户、MVP、用户故事、验收标准与隐私原则 |
 | `docs/ARCHITECTURE.md` | Next.js App Router 本地优先架构、存储、备份、媒体与安全边界 |
+| `docs/STACK_ALIGNMENT.md` | 对照 Pagevela 的真实技术栈、可复用工程实践及不迁移的技术边界 |
 | `docs/DATA_MODEL.md` | 人物、人生事件、故事、证据和媒体的数据模型 |
 | `docs/ROADMAP.md` | Milestone、Issue 拆分、质量门禁和交付顺序 |
 | `docs/BRAND.md` | 品牌定位、视觉规范、Logo 使用、命名风险 |

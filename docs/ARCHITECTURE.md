@@ -2,13 +2,13 @@
 
 ## 1. 技术选型
 
-与 Pagevela 尽量保持一致：
+与 Pagevela 尽量复用工程实践，同时保留已选择的 Next.js 框架。详细版本和迁移边界见 [`STACK_ALIGNMENT.md`](./STACK_ALIGNMENT.md)。
 
 | 层 | 推荐 | 说明 |
 |---|---|---|
 | UI | Next.js 16 App Router + React 19 + TypeScript | 按用户选择的 Next.js 框架构建；首期只使用可静态导出的路由/组件 |
 | 样式 | Tailwind CSS | 共享设计思路，不直接耦合 Pagevela 主题 |
-| 状态 | Zustand | 当前视图/筛选/编辑器状态，数据库是事实源 |
+| 状态 | React 内部状态；按需引入 Zustand | 当前尚未安装 Zustand；未来跨路由共享 UI 状态时使用，数据库始终是事实源 |
 | 数据 | Dexie + IndexedDB | 本地结构化档案、迁移版本管理 |
 | 大附件 | OPFS（优先）+ 浏览器兼容回退 | 大文件不直接放入状态树或分享 URL |
 | 编辑 | Markdown 编辑器与阅读渲染 | 保留纯文本可迁移性；不强绑某种私有格式 |
