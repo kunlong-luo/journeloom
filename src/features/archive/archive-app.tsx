@@ -23,7 +23,7 @@ function ArchiveDialog({ title, onClose, children }: { title: string; onClose: (
     return () => dialog?.close();
   }, []);
   return (
-    <dialog ref={ref} onClose={onClose} className="archive-modal m-auto max-h-[min(92vh,940px)] w-[min(92vw,680px)] overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--paper)] p-5 shadow-2xl backdrop:bg-[#14252baa] sm:p-8" aria-labelledby="archive-dialog-title">
+    <dialog ref={ref} onClose={() => { if (!ref.current?.open) onClose(); }} className="archive-modal m-auto max-h-[min(92vh,940px)] w-[min(92vw,680px)] overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--paper)] p-5 shadow-2xl backdrop:bg-[#14252baa] sm:p-8" aria-labelledby="archive-dialog-title">
       <div className="mb-7 flex items-start justify-between gap-4"><h2 id="archive-dialog-title" className="font-display text-[29px] tracking-[-0.045em]">{title}</h2><button type="button" className="archive-icon-button" aria-label="关闭" onClick={onClose}><X size={20} /></button></div>
       {children}
     </dialog>

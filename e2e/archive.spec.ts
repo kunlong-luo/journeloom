@@ -4,6 +4,7 @@ async function createSampleProfileAndEvent(page: import("@playwright/test").Page
   await page.goto("/archive/");
   await page.getByRole("button", { name: "创建第一份档案" }).click();
   const profileDialog = page.getByRole("dialog");
+  await expect(profileDialog).toBeVisible({ timeout: 8_000 });
   await profileDialog.getByRole("textbox", { name: /档案名称/ }).fill("我的测试档案");
   await profileDialog.getByRole("button", { name: "创建档案" }).click();
   await expect(page.getByRole("heading", { name: "我的测试档案" })).toBeVisible();
