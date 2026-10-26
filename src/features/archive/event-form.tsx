@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import type { EventCategory, EventInput, LifeDate, LifeEvent, Visibility } from "@/domain/models";
+import type { EventCategory, EventInput, LifeDate, LifeEvent, PersonRef, Visibility } from "@/domain/models";
 import { DateFields } from "./date-fields";
 
 const MarkdownPreview = dynamic(() => import("./markdown-preview"), { ssr: false });
@@ -16,13 +16,13 @@ const initialEvent: EventInput = {
   summaryMarkdown: "", reflectionMarkdown: "", locationLabel: "", tags: [], visibility: "private",
 };
 
-type Props = { initial?: LifeEvent; onCancel: () => void; onSubmit: (value: EventInput) => Promise<void> };
+type Props = { initial?: LifeEvent; people: PersonRef[]; onCancel: () => void; onSubmit: (value: EventInput) => Promise<void> };
 
-export function EventForm({ initial, onCancel, onSubmit }: Props) {
+export function EventForm({ initial, people, onCancel, onSubmit }: Props) {
   const [input, setInput] = useState<EventInput>(() => initial ? {
     title: initial.title, category: initial.category, startDate: initial.startDate, endDate: initial.endDate,
     locationLabel: initial.locationLabel ?? "", summaryMarkdown: initial.summaryMarkdown,
-    reflectionMarkdown: initial.reflectionMarkdown ?? "", tags: initial.tags, visibility: initial.visibility,
+    reflectionMarkdown: initial.reflectionMarkdown ?? "", tags: initial.tags, visibility: initial.visibility, participantIds: initial.participantIds,
   } : initialEvent);
   const [withEndDate, setWithEndDate] = useState(Boolean(initial?.endDate));
   const [showPreview, setShowPreview] = useState(false);
@@ -69,6 +69,13 @@ export function EventForm({ initial, onCancel, onSubmit }: Props) {
       <label className="archive-field">标签（用逗号分隔）
         <input className="archive-input" value={tagText} onChange={(event) => setTagText(event.target.value)} placeholder="成长，求学，家人" />
       </label>
+      <fieldset className="rounded-xl border border-[var(--border)] bg-white p-4">
+        <legend className="px-2 text-xs font-semibold">参与人物（可选）</legend>
+        {people.length ? <div className="grid max-h-40 gap-2 overflow-y-auto sm:grid-cols-2">{people.map((person) => <label key={person.id} className="flex cursor-pointer items-center gap-2 text-xs">
+          <input type="checkbox" checked={(input.participantIds ?? []).includes(person.id)} onChange={(event) => setInput((old) => ({ ...old, participantIds: event.target.checked ? [...(old.participantIds ?? []), person.id] : (old.participantIds ?? []).filter((id) => id !== person.id) }))} />
+          <span>{person.displayName}</span>{person.relationship ? <span className="text-[var(--muted)]">· {person.relationship}</span> : null}
+        </label>)}</div> : <p className="text-xs leading-6 text-[var(--muted)]">还没有人物。先在档案中添加人物，再回来关联这段经历。</p>}
+      </fieldset>
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-4"><label className="text-xs font-semibold" htmlFor="event-story">故事正文（Markdown）</label><button type="button" className="text-xs underline underline-offset-4" onClick={() => setShowPreview((current) => !current)}>{showPreview ? "继续编辑" : "预览效果"}</button></div>
         {showPreview ? <div className="min-h-38 rounded-lg border border-[var(--border)] bg-white p-4"><MarkdownPreview content={input.summaryMarkdown} /></div> :

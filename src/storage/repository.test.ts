@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { getDb, resetDbForTests } from "./database";
-import { attachMedia, createProfile, mediaKind, restoreEvent, saveEvent, softDeleteEvent } from "./repository";
+import Dexie from "dexie";
+import { attachMedia, createProfile, deletePerson, deleteProfile, mediaKind, restoreEvent, saveEvent, savePerson, softDeleteEvent } from "./repository";
 
 afterEach(async () => {
   await getDb().delete();
@@ -47,5 +48,45 @@ describe("local-first repository", () => {
     expect((await getDb().events.get(event.id))?.mediaIds).toContain(media.id);
     expect(await getDb().media.count()).toBe(1);
     expect(mediaKind("image/svg+xml")).toBeNull();
+  });
+
+  it("migrates a populated v1 database to v2 without losing profiles or events", async () => {
+    const legacy = new Dexie("journeloom-local");
+    legacy.version(1).stores({ profiles: "id, updatedAt", events: "id, profileId, [profileId+updatedAt], deletedAt", media: "id, profileId, eventId" });
+    const id = crypto.randomUUID();
+    const eventId = crypto.randomUUID();
+    const now = new Date().toISOString();
+    await legacy.table("profiles").add({ id, displayName: "旧档案", bioMarkdown: "", createdAt: now, updatedAt: now });
+    await legacy.table("events").add({
+      id: eventId, profileId: id, title: "旧回忆", category: "other", startDate: { precision: "unknown" }, summaryMarkdown: "已有内容",
+      tags: [], participantIds: [], mediaIds: [], sourceIds: [], visibility: "private", createdAt: now, updatedAt: now,
+    });
+    legacy.close();
+    const db = getDb();
+    expect((await db.profiles.get(id))?.displayName).toBe("旧档案");
+    expect((await db.events.get(eventId))?.summaryMarkdown).toBe("已有内容");
+    expect(await db.people.count()).toBe(0);
+    const person = await savePerson(id, { displayName: "旧友", notesMarkdown: "", isMinor: false });
+    expect(person.profileId).toBe(id);
+  });
+
+  it("keeps person links scoped to a profile and cleans links on deletion", async () => {
+    const owner = await createProfile({ displayName: "测试主角", bioMarkdown: "" });
+    const other = await createProfile({ displayName: "其他档案", bioMarkdown: "" });
+    const person = await savePerson(owner.id, { displayName: "一位朋友", relationship: "同学", notesMarkdown: "私人介绍", isMinor: true });
+    const input = { title: "多年后相见", category: "relationship" as const, startDate: { precision: "unknown" as const }, summaryMarkdown: "一次聚会", tags: [], visibility: "private" as const };
+    await expect(saveEvent(other.id, { ...input, participantIds: [person.id] })).rejects.toThrow("不属于当前档案");
+    await expect(savePerson(other.id, { displayName: "改名", notesMarkdown: "", isMinor: false }, person.id)).rejects.toThrow("人物不属于当前档案");
+    const event = await saveEvent(owner.id, { ...input, participantIds: [person.id] });
+    await expect(saveEvent(owner.id, { ...input, participantIds: [person.id, person.id] }, event.id)).rejects.toThrow("不能重复");
+    await softDeleteEvent(event.id);
+    await deletePerson(owner.id, person.id);
+    expect((await getDb().events.get(event.id))?.participantIds).toEqual([]);
+    await restoreEvent(event.id);
+    expect((await getDb().events.get(event.id))?.summaryMarkdown).toBe("一次聚会");
+    const newPerson = await savePerson(owner.id, { displayName: "家人", notesMarkdown: "", isMinor: false });
+    await deleteProfile(owner.id);
+    expect(await getDb().people.get(newPerson.id)).toBeUndefined();
+    expect(await getDb().profiles.get(other.id)).toBeDefined();
   });
 });

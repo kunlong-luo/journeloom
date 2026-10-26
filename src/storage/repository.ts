@@ -1,4 +1,4 @@
-import { eventSchema, mediaMetaSchema, profileSchema, type EventInput, type LifeEvent, type MediaMeta, type MediaRecord, type Profile, type ProfileInput } from "@/domain/models";
+import { eventSchema, mediaMetaSchema, personSchema, profileSchema, type EventInput, type LifeEvent, type MediaMeta, type MediaRecord, type PersonInput, type PersonRef, type Profile, type ProfileInput } from "@/domain/models";
 import { lifeDateSortKey, validateLifeDate } from "@/domain/life-date";
 import { getDb } from "./database";
 
@@ -32,10 +32,45 @@ export async function updateProfile(id: string, input: ProfileInput): Promise<vo
 
 export async function deleteProfile(id: string): Promise<void> {
   const db = getDb();
-  await db.transaction("rw", db.profiles, db.events, db.media, async () => {
+  await db.transaction("rw", db.profiles, db.events, db.media, db.people, async () => {
     await db.media.where("profileId").equals(id).delete();
     await db.events.where("profileId").equals(id).delete();
+    await db.people.where("profileId").equals(id).delete();
     await db.profiles.delete(id);
+  });
+}
+
+export async function savePerson(profileId: string, input: PersonInput, id?: string): Promise<PersonRef> {
+  const db = getDb();
+  return db.transaction("rw", db.profiles, db.people, async () => {
+    if (!(await db.profiles.get(profileId))) throw new Error("档案不存在");
+    const previous = id ? await db.people.get(id) : undefined;
+    if (id && (!previous || previous.profileId !== profileId)) throw new Error("人物不属于当前档案");
+    const now = new Date().toISOString();
+    const person = personSchema.parse({
+      ...previous, ...input, id: previous?.id ?? crypto.randomUUID(), profileId,
+      displayName: input.displayName.trim(), relationship: input.relationship?.trim() || undefined,
+      visibility: "private", createdAt: previous?.createdAt ?? now, updatedAt: now,
+    });
+    await db.people.put(person);
+    return person;
+  });
+}
+
+/** Unlink on deletion, including events in the trash, without deleting history. */
+export async function deletePerson(profileId: string, personId: string): Promise<void> {
+  const db = getDb();
+  await db.transaction("rw", db.people, db.events, async () => {
+    const person = await db.people.get(personId);
+    if (!person || person.profileId !== profileId) throw new Error("人物不属于当前档案");
+    const events = await db.events.where("profileId").equals(profileId).toArray();
+    const now = new Date().toISOString();
+    for (const event of events) {
+      if (event.participantIds.includes(personId)) {
+        await db.events.update(event.id, { participantIds: event.participantIds.filter((id) => id !== personId), updatedAt: now });
+      }
+    }
+    await db.people.delete(personId);
   });
 }
 
@@ -50,24 +85,25 @@ export async function saveEvent(profileId: string, input: EventInput, id?: strin
   const profile = await db.profiles.get(profileId);
   if (!profile) throw new Error("无法找到所属档案");
 
-  const previous = id ? await db.events.get(id) : undefined;
-  if (id && (!previous || previous.profileId !== profileId || previous.deletedAt)) throw new Error("事件不存在或已删除");
-  const now = new Date().toISOString();
-  const event = eventSchema.parse({
-    ...previous,
-    ...input,
-    id: previous?.id ?? crypto.randomUUID(),
-    profileId,
-    title: input.title.trim(),
-    tags: [...new Set(input.tags.map((tag) => tag.trim()).filter(Boolean))],
-    participantIds: previous?.participantIds ?? [],
-    mediaIds: previous?.mediaIds ?? [],
-    sourceIds: previous?.sourceIds ?? [],
-    createdAt: previous?.createdAt ?? now,
-    updatedAt: now,
+  return db.transaction("rw", db.events, db.people, async () => {
+    const previous = id ? await db.events.get(id) : undefined;
+    if (id && (!previous || previous.profileId !== profileId || previous.deletedAt)) throw new Error("事件不存在或已删除");
+    const participants = input.participantIds ?? previous?.participantIds ?? [];
+    if (new Set(participants).size !== participants.length) throw new Error("关联人物不能重复");
+    const people = await db.people.bulkGet(participants);
+    if (people.some((person) => !person || person.profileId !== profileId)) throw new Error("关联人物不存在或不属于当前档案");
+    const now = new Date().toISOString();
+    const event = eventSchema.parse({
+      ...previous, ...input,
+      id: previous?.id ?? crypto.randomUUID(), profileId, title: input.title.trim(),
+      tags: [...new Set(input.tags.map((tag) => tag.trim()).filter(Boolean))],
+      participantIds: participants,
+      mediaIds: previous?.mediaIds ?? [], sourceIds: previous?.sourceIds ?? [],
+      createdAt: previous?.createdAt ?? now, updatedAt: now,
+    });
+    await db.events.put(event);
+    return event;
   });
-  await db.events.put(event);
-  return event;
 }
 
 export async function softDeleteEvent(id: string): Promise<void> {
