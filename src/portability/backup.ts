@@ -1,11 +1,11 @@
 import JSZip from "jszip";
 import { z } from "zod";
-import { eventSchema, mediaMetaSchema, profileSchema, type LifeEvent, type MediaRecord, type Profile } from "@/domain/models";
+import { eventSchema, mediaMetaSchema, personSchema, profileSchema, type LifeEvent, type MediaRecord, type PersonRef, type Profile } from "@/domain/models";
 import { validateLifeDate } from "@/domain/life-date";
 import { getDb } from "@/storage/database";
 import { sha256Hex } from "@/storage/repository";
 
-const FORMAT_VERSION = 1;
+const FORMAT_VERSION = 2;
 const MAX_ARCHIVE_BYTES = 100_000_000;
 const MAX_CONTENT_BYTES = 80_000_000;
 const MAX_METADATA_BYTES = 5_000_000;
@@ -17,17 +17,26 @@ const entrySchema = z.object({
   sizeBytes: z.number().int().min(0),
   sha256: z.string().regex(/^[a-f0-9]{64}$/),
 }).strict();
-const manifestSchema = z.object({
-  formatVersion: z.literal(FORMAT_VERSION),
+const manifestBase = {
   appVersion: z.string(),
   createdAt: z.iso.datetime(),
-  counts: z.object({ profiles: z.number().int().min(0), events: z.number().int().min(0), media: z.number().int().min(0) }).strict(),
-  files: z.array(entrySchema).max(503),
+  files: z.array(entrySchema).max(504),
+};
+const count = z.number().int().min(0);
+const legacyManifestSchema = z.object({
+  ...manifestBase, formatVersion: z.literal(1),
+  counts: z.object({ profiles: count, events: count, media: count }).strict(),
 }).strict();
+const manifestSchema = z.object({
+  ...manifestBase, formatVersion: z.literal(FORMAT_VERSION),
+  counts: z.object({ profiles: count, events: count, people: count, media: count }).strict(),
+}).strict();
+const anyManifestSchema = z.discriminatedUnion("formatVersion", [legacyManifestSchema, manifestSchema]);
 
 export type BackupSnapshot = {
   profiles: Profile[];
   events: LifeEvent[];
+  people: PersonRef[];
   media: MediaRecord[];
   createdAt: string;
 };
@@ -43,11 +52,17 @@ function ensureValidRelations(snapshot: BackupSnapshot) {
   const profileIds = new Set(snapshot.profiles.map((profile) => profile.id));
   const eventIds = new Set(snapshot.events.map((event) => event.id));
   const mediaIds = new Set(snapshot.media.map((media) => media.id));
-  if (profileIds.size !== snapshot.profiles.length || eventIds.size !== snapshot.events.length || mediaIds.size !== snapshot.media.length) {
+  const peopleIds = new Set(snapshot.people.map((person) => person.id));
+  if (profileIds.size !== snapshot.profiles.length || eventIds.size !== snapshot.events.length || mediaIds.size !== snapshot.media.length || peopleIds.size !== snapshot.people.length) {
     throw new BackupError("备份包含重复的记录 ID");
   }
+  if (snapshot.people.some((person) => !profileIds.has(person.profileId))) throw new BackupError("人物引用了不存在的档案");
+  const personProfiles = new Map(snapshot.people.map((person) => [person.id, person.profileId]));
   for (const event of snapshot.events) {
     if (!profileIds.has(event.profileId)) throw new BackupError("事件引用了不存在的档案");
+    if (new Set(event.participantIds).size !== event.participantIds.length || event.participantIds.some((id) => personProfiles.get(id) !== event.profileId)) {
+      throw new BackupError("事件关联了不存在或跨档案的人物");
+    }
     if (event.mediaIds.some((id) => !mediaIds.has(id))) throw new BackupError("事件引用了缺失的附件");
     if (validateLifeDate(event.startDate) || (event.endDate && validateLifeDate(event.endDate))) throw new BackupError("备份中有无效的事件日期");
   }
@@ -79,9 +94,9 @@ function assertDecompressionLimit(entry: JSZip.JSZipObject, max: number) {
 
 export async function createBackup(): Promise<Blob> {
   const db = getDb();
-  const [profiles, events, media] = await db.transaction("r", db.profiles, db.events, db.media,
-    () => Promise.all([db.profiles.toArray(), db.events.toArray(), db.media.toArray()]));
-  const snapshot: BackupSnapshot = { profiles, events, media, createdAt: new Date().toISOString() };
+  const [profiles, events, people, media] = await db.transaction("r", db.profiles, db.events, db.people, db.media,
+    () => Promise.all([db.profiles.toArray(), db.events.toArray(), db.people.toArray(), db.media.toArray()]));
+  const snapshot: BackupSnapshot = { profiles, events, people, media, createdAt: new Date().toISOString() };
   ensureValidRelations(snapshot);
 
   const zip = new JSZip();
@@ -96,7 +111,7 @@ export async function createBackup(): Promise<Blob> {
   }
 
   for (const [name, data] of [
-    ["profiles", profiles], ["events", events],
+    ["profiles", profiles], ["events", events], ["people", people],
     ["media", media.map(({ blob: _blob, ...meta }) => { void _blob; return meta; })],
   ] as const) {
     const text = JSON.stringify(data, null, 2);
@@ -116,7 +131,7 @@ export async function createBackup(): Promise<Blob> {
     formatVersion: FORMAT_VERSION,
     appVersion: "0.1.0",
     createdAt: snapshot.createdAt,
-    counts: { profiles: profiles.length, events: events.length, media: media.length },
+    counts: { profiles: profiles.length, events: events.length, people: people.length, media: media.length },
     files: entries,
   }), null, 2), { createFolders: false });
 
@@ -142,16 +157,16 @@ export async function readBackup(file: File): Promise<BackupSnapshot> {
   catch { throw new BackupError("不是有效的 ZIP 备份文件"); }
 
   const files = Object.values(zip.files).filter((entry) => !entry.dir);
-  if (files.length > 504) throw new BackupError("备份条目数量异常");
+  if (files.length > 505) throw new BackupError("备份条目数量异常");
   const manifestFile = zip.file("manifest.json");
   if (!manifestFile) throw new BackupError("缺少 manifest.json");
   assertDecompressionLimit(manifestFile, 1_000_000);
-  const manifest = await readJson(zip, "manifest.json", manifestSchema);
+  const manifest = await readJson(zip, "manifest.json", anyManifestSchema);
   const allowedFiles = new Set(["manifest.json", ...manifest.files.map((entry) => entry.path)]);
   if (allowedFiles.size !== files.length || files.some((entry) => !allowedFiles.has(entry.name))) {
     throw new BackupError("备份包含未知或重复文件");
   }
-  const expectedDataPaths = ["data/profiles.json", "data/events.json", "data/media.json"];
+  const expectedDataPaths = ["data/profiles.json", "data/events.json", "data/media.json", ...(manifest.formatVersion === 2 ? ["data/people.json"] : [])];
   if (expectedDataPaths.some((path) => !allowedFiles.has(path))) throw new BackupError("缺少必要的数据文件");
 
   let bytesTotal = 0;
@@ -174,8 +189,9 @@ export async function readBackup(file: File): Promise<BackupSnapshot> {
 
   const profiles = await readJson(zip, "data/profiles.json", z.array(profileSchema));
   const events = await readJson(zip, "data/events.json", z.array(eventSchema));
+  const people = manifest.formatVersion === 2 ? await readJson(zip, "data/people.json", z.array(personSchema)) : [];
   const metas = await readJson(zip, "data/media.json", z.array(mediaMetaSchema));
-  if (profiles.length !== manifest.counts.profiles || events.length !== manifest.counts.events || metas.length !== manifest.counts.media) {
+  if (profiles.length !== manifest.counts.profiles || events.length !== manifest.counts.events || metas.length !== manifest.counts.media || (manifest.formatVersion === 2 && people.length !== manifest.counts.people)) {
     throw new BackupError("备份记录数量与清单不一致");
   }
   const media: MediaRecord[] = [];
@@ -186,7 +202,7 @@ export async function readBackup(file: File): Promise<BackupSnapshot> {
     }
     media.push({ ...meta, blob: new Blob([bytes as Uint8Array<ArrayBuffer>], { type: meta.mimeType }) });
   }
-  const snapshot = { profiles, events, media, createdAt: manifest.createdAt };
+  const snapshot = { profiles, events, people, media, createdAt: manifest.createdAt };
   ensureValidRelations(snapshot);
   return snapshot;
 }
@@ -195,7 +211,7 @@ export async function readBackup(file: File): Promise<BackupSnapshot> {
 export async function importBackup(snapshot: BackupSnapshot): Promise<void> {
   ensureValidRelations(snapshot);
   const db = getDb();
-  await db.transaction("rw", db.profiles, db.events, db.media, async () => {
+  await db.transaction("rw", db.profiles, db.events, db.people, db.media, async () => {
     for (const profile of snapshot.profiles) {
       if (await db.profiles.get(profile.id)) throw new BackupError("检测到已存在的档案，未覆盖任何数据。请在新浏览器档案中恢复。");
     }
@@ -205,8 +221,12 @@ export async function importBackup(snapshot: BackupSnapshot): Promise<void> {
     for (const media of snapshot.media) {
       if (await db.media.get(media.id)) throw new BackupError("检测到重复的附件 ID，已取消恢复。");
     }
+    for (const person of snapshot.people) {
+      if (await db.people.get(person.id)) throw new BackupError("检测到重复的人物 ID，已取消恢复。");
+    }
     await db.profiles.bulkAdd(snapshot.profiles);
     await db.events.bulkAdd(snapshot.events);
+    await db.people.bulkAdd(snapshot.people);
     await db.media.bulkAdd(snapshot.media);
   });
 }

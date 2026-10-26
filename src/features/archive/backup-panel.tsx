@@ -135,7 +135,7 @@ export function BackupPanel({ profile, events }: Props) {
 
       {incoming ? <div className="mt-5 rounded-xl border border-[#c8d5cc] bg-white p-4 text-sm">
         <h3 className="font-semibold">恢复前预览（尚未写入）</h3>
-        <p className="mt-2 text-xs leading-6 text-[var(--muted)]">备份日期：{new Date(incoming.createdAt).toLocaleString("zh-CN")} · {incoming.profiles.length} 份档案 · {incoming.events.length} 条事件 · {incoming.media.length} 个附件</p>
+        <p className="mt-2 text-xs leading-6 text-[var(--muted)]">备份日期：{new Date(incoming.createdAt).toLocaleString("zh-CN")} · {incoming.profiles.length} 份档案 · {incoming.events.length} 条事件 · {incoming.people.length} 位人物 · {incoming.media.length} 个附件</p>
         <p className="mt-1 text-xs leading-6 text-[var(--muted)]">所有文件校验成功。恢复使用仅新增模式，如果记录 ID 重复，将中止整个事务，不会覆盖现有内容。</p>
         <div className="mt-4 flex gap-2"><button className="archive-button-primary" type="button" disabled={pending} onClick={() => void confirmImport()}>确认恢复</button><button className="archive-button-ghost" type="button" onClick={() => setIncoming(null)}>取消</button></div>
       </div> : null}

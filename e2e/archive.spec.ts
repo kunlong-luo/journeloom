@@ -124,3 +124,28 @@ test("attachments stay local and public reading export requires explicit approva
   expect(text).toContain("一段值得保存的旅行");
   expect(text).not.toContain("fictional-note.txt");
 });
+
+test("people can be linked to experiences, edited and safely unlinked", async ({ page }) => {
+  await createSampleProfileAndEvent(page);
+  await page.getByRole("button", { name: "添加人物" }).click();
+  const personDialog = page.getByRole("dialog");
+  await personDialog.getByRole("textbox", { name: "人物姓名或化名" }).fill("虚构同学小林");
+  await personDialog.getByRole("textbox", { name: /与你的关系/ }).fill("同学");
+  await personDialog.getByRole("checkbox", { name: /未成年人/ }).check();
+  await personDialog.getByRole("button", { name: "添加人物" }).click();
+  await page.getByRole("button", { name: "编辑 一段值得保存的旅行" }).click();
+  const eventDialog = page.getByRole("dialog");
+  await eventDialog.getByRole("checkbox", { name: /虚构同学小林/ }).check();
+  await eventDialog.getByRole("button", { name: "保存修改" }).click();
+  await expect(page.getByRole("article").getByText("虚构同学小林")).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("article").getByText("虚构同学小林")).toBeVisible();
+  await page.getByRole("button", { name: "编辑人物 虚构同学小林" }).click();
+  await page.getByRole("dialog").getByRole("textbox", { name: "人物姓名或化名" }).fill("一位同学");
+  await page.getByRole("dialog").getByRole("button", { name: "保存人物" }).click();
+  await expect(page.getByRole("article").getByText("一位同学")).toBeVisible();
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("button", { name: "删除人物 一位同学" }).click();
+  await expect(page.getByRole("article").getByText("一位同学")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "一段值得保存的旅行" })).toBeVisible();
+});

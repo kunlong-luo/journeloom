@@ -25,6 +25,20 @@ export const profileSchema = z.object({
 }).strict();
 export type Profile = z.infer<typeof profileSchema>;
 
+export const personSchema = z.object({
+  id: z.uuid(),
+  profileId: z.uuid(),
+  displayName: z.string().trim().min(1).max(100),
+  relationship: z.string().trim().max(100).optional(),
+  notesMarkdown: z.string().max(10000),
+  isMinor: z.boolean(),
+  visibility: visibilitySchema,
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+}).strict();
+export type PersonRef = z.infer<typeof personSchema>;
+export type PersonInput = Pick<PersonRef, "displayName" | "relationship" | "notesMarkdown" | "isMinor">;
+
 export const eventCategorySchema = z.enum(["family", "education", "career", "relationship", "travel", "health", "milestone", "other"]);
 export type EventCategory = z.infer<typeof eventCategorySchema>;
 
@@ -65,4 +79,4 @@ export type MediaMeta = z.infer<typeof mediaMetaSchema>;
 export type MediaRecord = MediaMeta & { blob: Blob };
 
 export type ProfileInput = Pick<Profile, "displayName" | "bioMarkdown" | "birthDate">;
-export type EventInput = Pick<LifeEvent, "title" | "category" | "startDate" | "endDate" | "locationLabel" | "summaryMarkdown" | "reflectionMarkdown" | "tags" | "visibility">;
+export type EventInput = Pick<LifeEvent, "title" | "category" | "startDate" | "endDate" | "locationLabel" | "summaryMarkdown" | "reflectionMarkdown" | "tags" | "visibility"> & { participantIds?: string[] };

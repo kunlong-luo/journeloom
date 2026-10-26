@@ -3,17 +3,18 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, BookOpenText, CalendarClock, FilePlus2, ImagePlus, LockKeyhole, PenLine, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { ArrowLeft, BookOpenText, CalendarClock, FilePlus2, ImagePlus, LockKeyhole, PenLine, Plus, RotateCcw, Search, Trash2, Users, X } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
 import { formatLifeDate, newestFirst } from "@/domain/life-date";
-import type { EventCategory, EventInput, LifeEvent, MediaRecord, ProfileInput } from "@/domain/models";
+import type { EventCategory, EventInput, LifeEvent, MediaRecord, PersonInput, PersonRef, ProfileInput } from "@/domain/models";
 import { getDb } from "@/storage/database";
-import { attachMedia, createProfile, deleteProfile, removeMedia, restoreEvent, saveEvent, softDeleteEvent, updateProfile } from "@/storage/repository";
+import { attachMedia, createProfile, deletePerson, deleteProfile, removeMedia, restoreEvent, saveEvent, savePerson, softDeleteEvent, updateProfile } from "@/storage/repository";
 import { BackupPanel, downloadBlob } from "./backup-panel";
 import { EventForm, categoryNames } from "./event-form";
 import { ProfileForm } from "./profile-form";
+import { PersonForm } from "./person-form";
 
-type Editor = { kind: "new-profile" } | { kind: "edit-profile" } | { kind: "new-event" } | { kind: "edit-event"; event: LifeEvent } | null;
+type Editor = { kind: "new-profile" } | { kind: "edit-profile" } | { kind: "new-event" } | { kind: "edit-event"; event: LifeEvent } | { kind: "new-person" } | { kind: "edit-person"; person: PersonRef } | null;
 
 function ArchiveDialog({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -74,6 +75,7 @@ function ArchiveWorkspace() {
   const [error, setError] = useState("");
   const events = useLiveQuery<LifeEvent[], LifeEvent[]>(() => selectedId ? db.events.where("profileId").equals(selectedId).toArray() : Promise.resolve([]), [selectedId], []);
   const media = useLiveQuery<MediaRecord[], MediaRecord[]>(() => selectedId ? db.media.where("profileId").equals(selectedId).toArray() : Promise.resolve([]), [selectedId], []);
+  const people = useLiveQuery<PersonRef[], PersonRef[]>(() => selectedId ? db.people.where("profileId").equals(selectedId).toArray() : Promise.resolve([]), [selectedId], []);
 
   const profile = profiles.find((item) => item.id === selectedId);
   const allEvents = events ?? [];
@@ -97,6 +99,19 @@ function ArchiveWorkspace() {
     await saveEvent(selectedId, input, editor?.kind === "edit-event" ? editor.event.id : undefined);
     setEditor(null);
     setShowTrash(false);
+  }
+
+  async function storePerson(input: PersonInput) {
+    if (!selectedId) return;
+    await savePerson(selectedId, input, editor?.kind === "edit-person" ? editor.person.id : undefined);
+    setEditor(null);
+  }
+
+  async function confirmDeletePerson(person: PersonRef) {
+    if (!selectedId || !window.confirm(`确定删除「${person.displayName}」吗？这会移除其在所有人生事件中的关联，但不会删除事件正文。`)) return;
+    setError("");
+    try { await deletePerson(selectedId, person.id); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "删除人物失败"); }
   }
 
   async function confirmDeleteProfile() {
@@ -132,6 +147,17 @@ function ArchiveWorkspace() {
               <div className="flex gap-2"><button type="button" onClick={() => setEditor({ kind: "edit-profile" })} className="archive-icon-button" title="编辑档案" aria-label="编辑档案"><PenLine size={17} /></button><button type="button" onClick={() => void confirmDeleteProfile()} className="archive-icon-button text-[#a35652]" title="删除档案" aria-label="删除档案"><Trash2 size={17} /></button></div>
             </div>
 
+            <section className="mt-9 rounded-xl border border-[#dde5dc] bg-[#f5f6f0] p-5" aria-labelledby="people-heading">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 id="people-heading" className="font-display flex items-center gap-2 text-xl"><Users size={19} className="text-[var(--sage-dark)]" /> 人生中的人 <span className="rounded-full bg-white px-2 py-0.5 text-xs text-[var(--sage-dark)]">{people.length}</span></h2>
+                <button type="button" className="archive-button-ghost inline-flex items-center gap-1.5" onClick={() => setEditor({ kind: "new-person" })}><Plus size={15} /> 添加人物</button>
+              </div>
+              {people.length ? <div className="mt-4 grid gap-2 sm:grid-cols-2">{people.map((person) => <div key={person.id} className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-[#e1e6de] bg-white px-3 py-3">
+                <div className="min-w-0"><p className="truncate text-sm font-semibold">{person.displayName}{person.isMinor ? <span className="ml-2 text-[10px] font-normal text-[#987d55]">未成年人</span> : null}</p><p className="mt-1 truncate text-[11px] text-[var(--muted)]">{person.relationship || "未填写关系"} · {allEvents.filter((event) => !event.deletedAt && event.participantIds.includes(person.id)).length} 条经历</p></div>
+                <div className="flex shrink-0 gap-1"><button type="button" className="archive-icon-button" aria-label={`编辑人物 ${person.displayName}`} onClick={() => setEditor({ kind: "edit-person", person })}><PenLine size={15} /></button><button type="button" className="archive-icon-button text-[#a35652]" aria-label={`删除人物 ${person.displayName}`} onClick={() => void confirmDeletePerson(person)}><Trash2 size={15} /></button></div>
+              </div>)}</div> : <p className="mt-3 text-xs leading-6 text-[var(--muted)]">用姓名或化名记录生命中重要的人。人物默认私密，可在事件中选择关联。</p>}
+            </section>
+
             <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border)] pb-5"><div className="flex items-center gap-2"><BookOpenText size={19} className="text-[var(--copper-dark)]" /><h2 className="font-display text-2xl">人生时间轴</h2><span className="rounded-full bg-[#e9efe9] px-2 py-1 text-[11px] text-[var(--sage-dark)]">{allEvents.filter((event) => !event.deletedAt).length}</span></div><button type="button" className="archive-button-primary inline-flex items-center gap-2" onClick={() => setEditor({ kind: "new-event" })}><FilePlus2 size={16} /> 记录新事件</button></div>
 
             <div className="mt-6 grid gap-2 sm:grid-cols-[minmax(0,1fr)_160px_155px]">
@@ -147,6 +173,7 @@ function ArchiveWorkspace() {
                 {event.summaryMarkdown ? <p className="mt-4 whitespace-pre-wrap break-words text-[13px] leading-7 text-[var(--muted)]">{event.summaryMarkdown.length > 400 ? `${event.summaryMarkdown.slice(0, 400)}…` : event.summaryMarkdown}</p> : null}
                 {event.reflectionMarkdown ? <blockquote className="mt-4 border-l-2 border-[var(--copper)] pl-4 text-[12px] leading-7 text-[var(--sage-dark)]">{event.reflectionMarkdown}</blockquote> : null}
                 {event.tags.length ? <div className="mt-4 flex flex-wrap gap-1.5">{event.tags.map((tag) => <span key={tag} className="rounded-full bg-[#f2eee7] px-2.5 py-1 text-[10px] text-[#87776a]">#{tag}</span>)}</div> : null}
+                {event.participantIds.length ? <div className="mt-3 flex flex-wrap gap-1.5" aria-label="参与人物">{event.participantIds.map((id) => { const person = people.find((item) => item.id === id); return person ? <span key={id} className="inline-flex items-center gap-1 rounded-full bg-[#e9efe9] px-2.5 py-1 text-[10px] text-[var(--sage-dark)]"><Users size={11} />{person.displayName}</span> : null; })}</div> : null}
                 {!showTrash ? <MediaAttachments event={event} records={media ?? []} /> : null}
               </article>) : <div className="rounded-xl border border-dashed border-[#c8d3ca] bg-[#f8f6f0] px-6 py-14 text-center"><BookOpenText size={29} className="mx-auto text-[var(--sage-dark)]" /><p className="font-display mt-4 text-xl">{showTrash ? "没有已删除事件" : allEvents.length ? "没有符合筛选条件的事件" : "每一个故事，都从一个瞬间开始"}</p><p className="mt-3 text-xs text-[var(--muted)]">{showTrash ? "已删除的事件会出现在这里，可以恢复。" : "记录一个重要时刻，或只是今天生活中小小的发现。"}</p>{!showTrash ? <button className="archive-button-primary mt-6" type="button" onClick={() => setEditor({ kind: "new-event" })}><Plus className="mr-1 inline" size={15} />添加第一条事件</button> : null}</div>}
             </div>
@@ -157,9 +184,10 @@ function ArchiveWorkspace() {
         </main>
       </div>
 
-      {editor ? <ArchiveDialog title={editor.kind === "new-profile" ? "创建人生档案" : editor.kind === "edit-profile" ? "编辑人生档案" : editor.kind === "new-event" ? "记录人生事件" : "编辑人生事件"} onClose={() => setEditor(null)}>
+      {editor ? <ArchiveDialog title={editor.kind === "new-profile" ? "创建人生档案" : editor.kind === "edit-profile" ? "编辑人生档案" : editor.kind === "new-event" ? "记录人生事件" : editor.kind === "edit-event" ? "编辑人生事件" : editor.kind === "new-person" ? "添加人物" : "编辑人物"} onClose={() => setEditor(null)}>
         {editor.kind === "new-profile" || editor.kind === "edit-profile" ? <ProfileForm initial={editor.kind === "edit-profile" ? profile : undefined} onCancel={() => setEditor(null)} onSubmit={saveProfile} /> :
-          <EventForm initial={editor.kind === "edit-event" ? editor.event : undefined} onCancel={() => setEditor(null)} onSubmit={storeEvent} />}
+          editor.kind === "new-person" || editor.kind === "edit-person" ? <PersonForm initial={editor.kind === "edit-person" ? editor.person : undefined} onCancel={() => setEditor(null)} onSubmit={storePerson} /> :
+          <EventForm people={people} initial={editor.kind === "edit-event" ? editor.event : undefined} onCancel={() => setEditor(null)} onSubmit={storeEvent} />}
       </ArchiveDialog> : null}
     </div>
   );
